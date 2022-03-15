@@ -1,5 +1,6 @@
 const express = require('express');
 const fs = require('fs');
+const compression = require('compression');
 const qs = require('querystring');
 const path = require('path');
 const template = require('./lib/template');
@@ -9,13 +10,28 @@ const app = express();
 // body parser 미들웨어
 app.use(express.urlencoded({ extended: false}));
 
+// compression 미들웨어. 압축
+app.use(compression());
+
+// 미들웨어 직접 만들어보자.
+// 미들웨어는 함수 형식
+app.get('*', (req, res, next) => { // use 대신 get으로 바꿈. *은 모든 요청이라는 뜻. 즉 
+   // get으로 들어오는 모든 요청만 파일 목록 가져옴. post는 x
+   // app.use('/user.:id' ~) 처럼 특정 경로에만 미들웨어 동작하게 할 수 있음.
+  fs.readdir('./data', function(error, filelist){
+    req.list = filelist;
+    next(); // 그 다음 미들웨어 호출
+  })
+})
+
 app.get('/', (req, res) => { // 홈
-    fs.readdir('./data', function(error, filelist){
+    //fs.readdir('./data', function(error, filelist){
         const title = 'Welcome home';
         const description = 'Hello, Node.js';
         
         // let list = templateList(filelist);
-        let list = template.list(filelist);
+        // let list = template.list(filelist);
+        let list = template.list(req.list);
 
         const html = template.html(title, list,
           `<h2>${title}</h2>${description}`,
@@ -23,7 +39,7 @@ app.get('/', (req, res) => { // 홈
           );
 
         res.send(html);
-      })
+     // })
 });
 
 /*
@@ -38,10 +54,13 @@ app.get('/users/:userId/books/:bookId', (req, res) => {
 
 app.get('/page/:pageId', (req, res) => {
     // return res.send(req.params); // http://localhost:3000/page/html => { "pageId": "html" }
-    fs.readdir('./data', function(error, filelist){
+
+    console.log(req.list);
+
+    //fs.readdir('./data', function(error, filelist){
       fs.readFile(`data/${req.params.pageId}`, 'utf8', function(err, description){
       const title = req.params.pageId;
-      let list = template.list(filelist);
+      let list = template.list(req.list);
       const html = template.html(title, list,
         `<h2>${title}</h2>${description}`,
         `<a href = '/create'>create</a>
@@ -53,31 +72,30 @@ app.get('/page/:pageId', (req, res) => {
         );
       res.send(html);
     });
-  });
+  //});
 });
 app.get('/create', (req, res) => {
-  fs.readdir('./data', function(error, filelist){
-    const title = 'WEB - create';
-    
-    let list = template.list(filelist);
-
-    // post 방식
-    const html = template.html(title, list, `
-    <form action = "/create_process" method="post">
-    <!-- create_process로 정보 전송. get할때는 쿼리스트링(?title=aa), 생성, 수정, 삭제 => 보이지 않는 방식 method="post". 안쓰면 기본 get -->
-      <p><input type = "text" placeholder = "title" name = "title"></p>
-      <p>
-          <textarea placeholder = "description" name = 'description'></textarea>
-      </p>
   
-      <p>
-          <input type="submit">
-      </p>
-    </form>
-    `, ''); // form 입력 양식
+  const title = 'WEB - create';
+  
+  let list = template.list(req.list);
 
-    res.send(html);
-  });
+  // post 방식
+  const html = template.html(title, list, `
+  <form action = "/create_process" method="post">
+  <!-- create_process로 정보 전송. get할때는 쿼리스트링(?title=aa), 생성, 수정, 삭제 => 보이지 않는 방식 method="post". 안쓰면 기본 get -->
+    <p><input type = "text" placeholder = "title" name = "title"></p>
+    <p>
+        <textarea placeholder = "description" name = 'description'></textarea>
+    </p>
+
+    <p>
+        <input type="submit">
+    </p>
+  </form>
+  `, ''); // form 입력 양식
+
+  res.send(html);
 });
 
 app.post('/create_process', (req, res) => {
@@ -99,7 +117,7 @@ app.post('/create_process', (req, res) => {
       res.redirect(`/page/${title}`); // 익스프레스에서 page/title 로 리다이렉트
     });
   });*/
-
+  console.log(req.list);
   let post = req.body; // 리퀘스트 객체의 body 프로퍼티에 접근. 간단
   const title = post.title; // 제목
   const description = post.description; // 설명
@@ -114,30 +132,29 @@ app.post('/create_process', (req, res) => {
 });
 
 app.get('/update/:pageId', (req, res) => {
-    fs.readdir('./data', function(error, filelist){
-      fs.readFile(`data/${req.params.pageId}`, 'utf8', function(err, description){
-      const title = req.params.pageId;
-      let list = template.list(filelist);
-      const html = template.html(title, list, // hidden으로 사용자에게는 안보이게 원래 제목 저장. f12-network-payload 확인. 
-        `
-        <form action = "/update_process" method="post">
-        <input type = "hidden" name = "id" value = "${title}">
-        <!-- create_process로 정보 전송. get할때는 쿼리스트링(?title=aa), 생성, 수정, 삭제 => 보이지 않는 방식 method="post". 안쓰면 기본 get -->
-          <p><input type = "text" placeholder = "title" name = "title" value = ${title}></p>
-          <p>
-              <textarea placeholder = "description" name = 'description'>${description}</textarea>
-          </p>
+    
+    fs.readFile(`data/${req.params.pageId}`, 'utf8', function(err, description){
+    const title = req.params.pageId;
+    let list = template.list(req.list);
+    const html = template.html(title, list, // hidden으로 사용자에게는 안보이게 원래 제목 저장. f12-network-payload 확인. 
+      `
+      <form action = "/update_process" method="post">
+      <input type = "hidden" name = "id" value = "${title}">
+      <!-- create_process로 정보 전송. get할때는 쿼리스트링(?title=aa), 생성, 수정, 삭제 => 보이지 않는 방식 method="post". 안쓰면 기본 get -->
+        <p><input type = "text" placeholder = "title" name = "title" value = ${title}></p>
+        <p>
+            <textarea placeholder = "description" name = 'description'>${description}</textarea>
+        </p>
+    
+        <p>
+            <input type="submit">
+        </p>
+      </form>
       
-          <p>
-              <input type="submit">
-          </p>
-        </form>
-        
-        `,
-        `<a href = '/create'>create</a> <a href = '/update?id=${title}'>update</a>`
-        );
-      res.send(html);
-    });
+      `,
+      `<a href = '/create'>create</a> <a href = '/update?id=${title}'>update</a>`
+      );
+    res.send(html);
   });
 });
 
@@ -209,71 +226,3 @@ app.post('/delete_process', (req, res) => {
 app.listen(3000, () => {
     console.log('3000에서 실행!');
 });
-
-/*
-const http = require('http');
-const fs = require('fs');
-const url = require('url');
-const qs = require('querystring');
-const template = require('./lib/template'); // 모듈로 뺌
-
-const templateHTML = (title, list, body, control) => {
-    return `
-    <!doctype html>
-    <html>
-    <head>
-      <title>WEB - ${title}</title>
-      <meta charset="utf-8">
-    </head>
-    <body>
-      <h1><a href="/">WEB</a></h1>
-      ${list}
-      ${control}
-      ${body}
-    </body>
-    </html>
-    `;
-}
-
-const templateList = (filelist) => {
-    let list = '<ul>';
-    let i = 0;
-    while(i < filelist.length){
-    list = list + `<li><a href="/?id=${filelist[i]}">${filelist[i]}!</a></li>`;
-    i = i + 1;
-    }
-    list = list+'</ul>';
-    return list;
-}
-
-
-const app = http.createServer(function(request,response){
-  const _url = request.url; // 3000 뒷 부분. / , /?id=css3 등
-  const queryData = url.parse(_url, true).query; // [Object: null prototype] { id: 'html' }
-  const pathname = url.parse(_url, true).pathname; // /update, /create
-    if(pathname === '/'){ // 3000 뒷 부분. /은 홈
-      if(queryData.id === undefined){ // id 입력되지 않았을 때, 즉 홈
-        
-      } else { // 아이디 입력 되었을 때, 즉 페이지 이동 시
-        
-      }
-    } else if (pathname === '/create') { // http://localhost:3000/create
-      
-    } else if (pathname === '/create_process') { // 처리한 후에 쓴 글 페이지로 리다이렉션 하자. 302
-        
-        
-    } else if (pathname === '/update') {
-      
-    } else if (pathname === '/update_process') {
-      
-    } else if (pathname === '/delete_process') {
-        
-    } else {
-      response.writeHead(404);
-      response.end('Not found');
-    }
-});
-app.listen(3000, () => {
-  console.log('port 3000!');
-});
-*/

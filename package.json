@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/bluesun147/opentutorials_express#readme",
   "dependencies": {
+    "compression": "^1.7.4",
     "nodemon": "^2.0.15"
   }
 }
