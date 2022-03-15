@@ -7,6 +7,11 @@ const template = require('./lib/template');
 
 const app = express();
 
+// 정적 파일(이미지, js, css파일 등) 사용
+// 익스프레스 기본 제공 미들웨어 함수 express.static
+// 정적 파일 포함된 디렉토리 명 직접 지정. public
+app.use(express.static('public'));
+
 // body parser 미들웨어
 app.use(express.urlencoded({ extended: false}));
 
@@ -34,7 +39,10 @@ app.get('/', (req, res) => { // 홈
         let list = template.list(req.list);
 
         const html = template.html(title, list,
-          `<h2>${title}</h2>${description}`,
+          `
+          <h2>${title}</h2>${description}
+          <img src = "/images/hello.jpg" style = "width: 300px; display: block; margin-top: 10px"/>
+          `,
           `<a href = '/create'>create</a>`
           );
 
@@ -52,27 +60,32 @@ app.get('/users/:userId/books/:bookId', (req, res) => {
 })
 */
 
-app.get('/page/:pageId', (req, res) => {
+app.get('/page/:pageId', (req, res, next) => {
     // return res.send(req.params); // http://localhost:3000/page/html => { "pageId": "html" }
 
     console.log(req.list);
 
-    //fs.readdir('./data', function(error, filelist){
-      fs.readFile(`data/${req.params.pageId}`, 'utf8', function(err, description){
-      const title = req.params.pageId;
-      let list = template.list(req.list);
-      const html = template.html(title, list,
-        `<h2>${title}</h2>${description}`,
-        `<a href = '/create'>create</a>
-        <a href = '/update/${title}'>update</a>
-        <form action="/delete_process" method="post">
-          <input type="hidden" name="id" value="${title}">
-          <input type="submit" value="delete">
-        </form>`
-        );
-      res.send(html);
-    });
-  //});
+    
+    fs.readFile(`data/${req.params.pageId}`, 'utf8', function(err, description){
+
+      if (err) {
+        next(err); // 에러 있는 경우 next에 인자
+      } else {
+        const title = req.params.pageId;
+        let list = template.list(req.list);
+        const html = template.html(title, list,
+          `<h2>${title}</h2>${description}`,
+          `<a href = '/create'>create</a>
+          <a href = '/update/${title}'>update</a>
+          <form action="/delete_process" method="post">
+            <input type="hidden" name="id" value="${title}">
+            <input type="submit" value="delete">
+          </form>`
+          );
+        res.send(html);
+      }
+    
+  });
 });
 app.get('/create', (req, res) => {
   
@@ -220,8 +233,17 @@ app.post('/delete_process', (req, res) => {
     // res.writeHead(302, {Location: `/`}); // 삭제되면 바로 홈으로 리다이렉션
     // res.send();
     res.redirect('/'); // 익스프레스에서 리다이렉트
-  })
-})
+  });
+});
+
+app.use((req, res, next) => {
+  res.status(404).send("404 : can't find that!");
+});
+
+app.use((err, req, res, next) => { // 에러 핸들러. 인자 4개
+  console.log(err.stack);
+  res.status(500).send("Something broke!");
+});
 
 app.listen(3000, () => {
     console.log('3000에서 실행!');
