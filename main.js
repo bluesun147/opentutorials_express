@@ -6,6 +6,9 @@ const template = require('./lib/template');
 
 const app = express();
 
+// body parser 미들웨어
+app.use(express.urlencoded({ extended: false}));
+
 app.get('/', (req, res) => { // 홈
     fs.readdir('./data', function(error, filelist){
         const title = 'Welcome home';
@@ -78,7 +81,7 @@ app.get('/create', (req, res) => {
 });
 
 app.post('/create_process', (req, res) => {
-  let body = '';
+  /*let body = '';
 
   req.on('data', (data) => { // 전송된 데이터 가져오기
     body += data; // 정보 조각조각 들어오다가
@@ -95,7 +98,19 @@ app.post('/create_process', (req, res) => {
       // res.end('success');
       res.redirect(`/page/${title}`); // 익스프레스에서 page/title 로 리다이렉트
     });
+  });*/
+
+  let post = req.body; // 리퀘스트 객체의 body 프로퍼티에 접근. 간단
+  const title = post.title; // 제목
+  const description = post.description; // 설명
+  console.log(post); // [Object: null prototype] { title: 'qq', description: 'zz' }
+
+  fs.writeFile(`data/${title}`, description, 'utf8', (err) => {
+    // res.writeHead(302, {Location: `/?id=${title}`}); // 리다이렉션. 쓴 글 페이지로 바로 이동.
+    // res.end('success');
+    res.redirect(`/page/${title}`); // 익스프레스에서 page/title 로 리다이렉트
   });
+
 });
 
 app.get('/update/:pageId', (req, res) => {
@@ -127,13 +142,14 @@ app.get('/update/:pageId', (req, res) => {
 });
 
 app.post('/update_process', (req, res) => {
-  let body = '';
+  /*let body = '';
 
   req.on('data', (data) => { // 전송된 데이터 가져오기
     body += data; // 정보 조각조각 들어오다가
   });
 
   req.on('end', () => { // 다 들어오면
+    //const post = qs.parse(body); // 객체화
     const post = qs.parse(body); // 객체화
     const id = post.id;
     const title = post.title; // 제목
@@ -148,12 +164,22 @@ app.post('/update_process', (req, res) => {
     });
 
     console.log(post); // [Object: null prototype] { title: 'qq', description: 'zz' }
+  });*/
 
+  let post = req.body; // 리퀘스트 객체의 body 프로퍼티에 접근. 간단
+  const id = post.id;
+  const title = post.title; // 제목
+  const description = post.description; // 설명
+  fs.rename(`data/${id}`, `data/${title}`, (error) => { // 파일명 변경. oldpath, newPath, callback
+    // 내용 바꾸기
+    fs.writeFile(`data/${title}`, description, 'utf8', () => {
+      res.redirect(`/page/${title}`); // 리다이렉션. 쓴 글 페이지로 바로 이동.
+    })
   });
 });
 
 app.post('/delete_process', (req, res) => {
-  let body = '';
+  /*let body = '';
 
   req.on('data', (data) => { // 전송된 데이터 가져오기
     body += data; // 정보 조각조각 들어오다가
@@ -170,7 +196,14 @@ app.post('/delete_process', (req, res) => {
 
     console.log(post); // [Object: null prototype] { title: 'qq', description: 'zz' }
 
-  });
+  });*/
+  const post = req.body;
+  const id = post.id;
+  fs.unlink(`data/${id}`, (error) => {
+    // res.writeHead(302, {Location: `/`}); // 삭제되면 바로 홈으로 리다이렉션
+    // res.send();
+    res.redirect('/'); // 익스프레스에서 리다이렉트
+  })
 })
 
 app.listen(3000, () => {
