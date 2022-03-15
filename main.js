@@ -1,5 +1,6 @@
 const express = require('express');
 const fs = require('fs');
+const path = require('path');
 const template = require('./lib/template');
 
 const app = express();
@@ -21,8 +22,34 @@ app.get('/', (req, res) => { // 홈
       })
 });
 
-app.get('/page', (req, res) => {
-    return res.send('/page');
+/*
+Route path: /users/:userId/books/:bookId
+Request URL: http://localhost:3000/users/34/books/8989
+req.params: { "userId": "34", "bookId": "8989" }
+
+app.get('/users/:userId/books/:bookId', (req, res) => {
+  res.send(req.params);
+})
+*/
+
+app.get('/page/:pageId', (req, res) => {
+    // return res.send(req.params); // http://localhost:3000/page/html => { "pageId": "html" }
+    fs.readdir('./data', function(error, filelist){
+      fs.readFile(`data/${req.params.pageId}`, 'utf8', function(err, description){
+      const title = req.params.pageId;
+      let list = template.list(filelist);
+      const html = template.html(title, list,
+        `<h2>${title}</h2>${description}`,
+        `<a href = '/create'>create</a>
+        <a href = '/update?id=${title}'>update</a>
+        <form action="delete_process" method="post">
+          <input type="hidden" name="id" value="${title}">
+          <input type="submit" value="delete">
+        </form>`
+        );
+      res.send(html);
+    });
+  });
 })
 
 app.listen(3000, () => {
@@ -72,21 +99,7 @@ const app = http.createServer(function(request,response){
   const pathname = url.parse(_url, true).pathname; // /update, /create
     if(pathname === '/'){ // 3000 뒷 부분. /은 홈
       if(queryData.id === undefined){ // id 입력되지 않았을 때, 즉 홈
-        fs.readdir('./data', function(error, filelist){
-          const title = 'Welcome home';
-          const description = 'Hello, Node.js';
-          
-          // let list = templateList(filelist);
-          let list = template.list(filelist);
-
-          const html = template.html(title, list,
-            `<h2>${title}</h2>${description}`,
-            `<a href = '/create'>create</a>`
-            );
-
-          response.writeHead(200);
-          response.end(html);
-        })
+        
       } else { // 아이디 입력 되었을 때, 즉 페이지 이동 시
         fs.readdir('./data', function(error, filelist){
             fs.readFile(`data/${queryData.id}`, 'utf8', function(err, description){
